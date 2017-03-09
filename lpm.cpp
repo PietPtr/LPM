@@ -6,6 +6,12 @@ void ip2human(unsigned int ip);
 int lookup_ip(unsigned int ip);
 void add_route(unsigned int p, int prefix_length, int port_number);
 
+struct route {
+	unsigned int ip,
+	int prefix_length,
+	int port_number
+}
+
 int main(void) {
 	// TODO: Request token from student assistant
 	puts("s1234567_abcde");
