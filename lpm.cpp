@@ -53,8 +53,8 @@ CompareResult is_in_range(int index, unsigned int ip) {
 	// std::cout << "\n" << routes[index].prefix_length << "\n";
 	// ip2human(lower_bound);
 	// ip2human(upper_bound);
-	std::cout << lower_bound << " " << upper_bound << "\n";
-	ip2human(routes[index].ip);
+	// std::cout << lower_bound << " " << upper_bound << "\n";
+	// ip2human(routes[index].ip);
 
 	if (ip >= lower_bound && ip <= upper_bound)
 		return IN;
@@ -66,13 +66,24 @@ CompareResult is_in_range(int index, unsigned int ip) {
 
 int lookup_ip_binary(unsigned int ip, int lower_index, int higher_index) {
 	//std::cout << lower_index << " > " << higher_index << " = " << (lower_index > higher_index) << "\n";
-	if (lower_index > higher_index)
-		return -1;
+	if (lower_index > higher_index) {
+		int timeout = 0;
+		while (!(is_in_range(lower_index - 1, ip) == IN) && lower_index >= 0) {
+			lower_index--;
+
+			timeout++;
+			if (timeout > 2000) {
+				return -1;
+			}
+		}
+		return lower_index - 1;
+	}
 
 	int m = (lower_index + higher_index) / 2;
 
 	CompareResult result = is_in_range(m, ip);
-	std::cout << "result: " << result << "\n\n";
+	//std::cout << "result: " << result << "\n\n";
+	//ip2human(routes[m].ip);
 
 	if (result == LOWER)
 		return lookup_ip_binary(ip, m + 1, higher_index);
@@ -90,21 +101,50 @@ int lookup_ip(unsigned int ip) {
 	// 		return routes[i].port_number;
 	// 	}
 	// }
-
-	ip2human(ip);
-	std::cout << ip << "\n";
+	//
+	// ip2human(ip);
+	// std::cout << ip << "\n";
 
 	int binary_result = lookup_ip_binary(ip, 0, routes.size() - 1);
 
-	if (binary_result == -1)
+	if (binary_result == -1) {
 		return -1;
-
-	int specific_index = binary_result;
-	while (is_in_range(specific_index + 1, ip) == IN && (specific_index + 1) < routes.size()) {
-		specific_index++;
 	}
 
-	return routes[specific_index].port_number;
+	int specific_index = binary_result;
+	// while (is_in_range(specific_index + 1, ip) == IN && (specific_index + 1) < routes.size()) {
+	// 	specific_index++;
+	// }
+
+	unsigned int lower_bound = routes[specific_index].ip &
+			   (0xFFFFFFFF << (32 - routes[specific_index].prefix_length));
+	int distance  = abs(ip - lower_bound);
+	int found_index = binary_result;
+
+	while(true)
+	{
+		specific_index++;
+
+		lower_bound = routes[specific_index].ip &
+				   (0xFFFFFFFF << (32 - routes[specific_index].prefix_length));
+		int next_distance = abs(ip - lower_bound);
+
+		if(next_distance <= distance)
+		{
+			distance = next_distance;
+			if(is_in_range(specific_index, ip) == IN)
+			{
+				found_index = specific_index;
+			}
+		}
+		else
+		{
+			specific_index--;
+			break;
+		}
+	}
+
+	return routes[found_index].port_number;
 }
 
 void ip2human(unsigned int ip) {
