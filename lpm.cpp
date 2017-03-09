@@ -16,17 +16,19 @@ struct route {
 
 std::vector<route> routes;
 
+enum CompareResult { LOWER, IN, HIGHER };
+
 int main(void) {
 	// TODO: Request token from student assistant
-	puts("s1234567_abcde");
+	puts("s1776894_4qcw2");
 	fflush(stdout);
 
 	read_routes();
 	read_lookup();
 
-	while(true) {
-
-	}
+	// while(true) {
+	//
+	// }
 
 	return 0;
 }
@@ -42,26 +44,67 @@ void add_route(unsigned int ip, int prefix_length, int port_number) {
 
 }
 
-bool is_in_range(unsigned int ip_range, int prefix_length, unsigned int ip) {
-	unsigned int lower_bound = ip_range & (0xFFFFFFFF << (32 - prefix_length));
-	unsigned int upper_bound = ip_range | (0xFFFFFFFF >> (prefix_length));
+CompareResult is_in_range(int index, unsigned int ip) {
+	unsigned int lower_bound = routes[index].ip &
+							   (0xFFFFFFFF << (32 - routes[index].prefix_length));
+	unsigned int upper_bound = routes[index].ip |
+							   (0xFFFFFFFF >> (routes[index].prefix_length));
 
-	// std::cout << "\n" << prefix_length << "\n";
+	// std::cout << "\n" << routes[index].prefix_length << "\n";
 	// ip2human(lower_bound);
 	// ip2human(upper_bound);
+	std::cout << lower_bound << " " << upper_bound << "\n";
+	ip2human(routes[index].ip);
 
-	return ip > lower_bound && ip < upper_bound;
+	if (ip >= lower_bound && ip <= upper_bound)
+		return IN;
+	if (lower_bound < ip)
+		return LOWER;
+	if (upper_bound > ip)
+		return HIGHER;
+}
+
+int lookup_ip_binary(unsigned int ip, int lower_index, int higher_index) {
+	//std::cout << lower_index << " > " << higher_index << " = " << (lower_index > higher_index) << "\n";
+	if (lower_index > higher_index)
+		return -1;
+
+	int m = (lower_index + higher_index) / 2;
+
+	CompareResult result = is_in_range(m, ip);
+	std::cout << "result: " << result << "\n\n";
+
+	if (result == LOWER)
+		return lookup_ip_binary(ip, m + 1, higher_index);
+	else if (result == HIGHER)
+		return lookup_ip_binary(ip, lower_index, m - 1);
+	else
+		return m;
 }
 
 int lookup_ip(unsigned int ip) {
 	// TODO: Lookup IP in stored data from add_route function,
 	//       returns port number (or -1 for no route found).
-	for (unsigned int i = 0; i < routes.size(); i++) {
-		if (is_in_range(routes[i].ip, routes[i].prefix_length, ip)) {
-			return routes[i].port_number;
-		}
+	// for (unsigned int i = 0; i < routes.size(); i++) {
+	// 	if (is_in_range(i, ip)) {
+	// 		return routes[i].port_number;
+	// 	}
+	// }
+
+	ip2human(ip);
+	std::cout << ip << "\n";
+
+	int binary_result = lookup_ip_binary(ip, 0, routes.size() - 1);
+
+	if (binary_result == -1)
+		return -1;
+
+	int specific_index = binary_result;
+	while (is_in_range(specific_index + 1, ip) == IN && (specific_index + 1) < routes.size()) {
+		specific_index++;
 	}
-	return -1;
+
+	return routes[specific_index].port_number;
 }
 
 void ip2human(unsigned int ip) {
