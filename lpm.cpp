@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <iostream>
 
 void read_routes(void);
 void read_lookup(void);
@@ -19,6 +20,7 @@ int main(void) {
 
 void add_route(unsigned int ip, int prefix_length, int port_number) {
 	// TODO: Store route to be used for later use in lookup_ip() function
+	std::cout << ip << "|" << prefix_length << "|" << port_number << '\n';
 }
 
 int lookup_ip(unsigned int ip) {
