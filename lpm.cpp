@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <vector>
+#include <array>
 
 void read_routes(void);
 void read_lookup(void);
@@ -14,7 +15,7 @@ struct route {
 	int port_number;
 };
 
-std::vector<route> routes;
+std::array<std::vector<route>, 33> routes;
 
 enum CompareResult { LOWER, IN, HIGHER };
 
@@ -26,9 +27,7 @@ int main(void) {
 	read_routes();
 	read_lookup();
 
-	// while(true) {
-	//
-	// }
+	//while(true) {};
 
 	return 0;
 }
@@ -40,21 +39,22 @@ void add_route(unsigned int ip, int prefix_length, int port_number) {
 	r.ip = ip;
 	r.prefix_length = prefix_length;
 	r.port_number = port_number;
-	routes.push_back(r);
+	routes[prefix_length].push_back(r);
 
 }
 
-CompareResult is_in_range(int index, unsigned int ip) {
-	unsigned int lower_bound = routes[index].ip &
-							   (0xFFFFFFFF << (32 - routes[index].prefix_length));
-	unsigned int upper_bound = routes[index].ip |
-							   (0xFFFFFFFF >> (routes[index].prefix_length));
+CompareResult is_in_range(int prefix, int index, unsigned int ip) {
+	route r = routes[prefix][index];
+
+	unsigned int lower_bound = r.ip & (0xFFFFFFFF << (32 - r.prefix_length));
+	unsigned int upper_bound = r.ip | (0xFFFFFFFF >> r.prefix_length);
 
 	// std::cout << "\n" << routes[index].prefix_length << "\n";
 	// ip2human(lower_bound);
 	// ip2human(upper_bound);
 	// std::cout << lower_bound << " " << upper_bound << "\n";
 	// ip2human(routes[index].ip);
+
 
 	if (ip >= lower_bound && ip <= upper_bound)
 		return IN;
@@ -64,31 +64,22 @@ CompareResult is_in_range(int index, unsigned int ip) {
 		return HIGHER;
 }
 
-int lookup_ip_binary(unsigned int ip, int lower_index, int higher_index) {
-	//std::cout << lower_index << " > " << higher_index << " = " << (lower_index > higher_index) << "\n";
+int lookup_ip_binary(int prefix, unsigned int ip, int lower_index, int higher_index) {
+	// std::cout << lower_index << " > " << higher_index << " = " << (lower_index > higher_index) << "\n";
 	if (lower_index > higher_index) {
-		int timeout = 0;
-		while (!(is_in_range(lower_index - 1, ip) == IN) && lower_index >= 0) {
-			lower_index--;
-
-			timeout++;
-			if (timeout > 2000) {
-				return -1;
-			}
-		}
-		return lower_index - 1;
+		return -1;
 	}
 
 	int m = (lower_index + higher_index) / 2;
 
-	CompareResult result = is_in_range(m, ip);
+	CompareResult result = is_in_range(prefix, m, ip);
 	//std::cout << "result: " << result << "\n\n";
 	//ip2human(routes[m].ip);
 
 	if (result == LOWER)
-		return lookup_ip_binary(ip, m + 1, higher_index);
+		return lookup_ip_binary(prefix, ip, m + 1, higher_index);
 	else if (result == HIGHER)
-		return lookup_ip_binary(ip, lower_index, m - 1);
+		return lookup_ip_binary(prefix, ip, lower_index, m - 1);
 	else
 		return m;
 }
@@ -105,46 +96,28 @@ int lookup_ip(unsigned int ip) {
 	// ip2human(ip);
 	// std::cout << ip << "\n";
 
-	int binary_result = lookup_ip_binary(ip, 0, routes.size() - 1);
+	//int binary_result = lookup_ip_binary(ip, 0, routes.size() - 1);
+
+	int binary_result = -1;
+	int prefix = 0;
+
+	// There are no IPs in the list outside this range, so we ignore the prefix
+	// lengths 32, 31, 30, 29, 28, 27, 26, 7, 6, 5, 4, 3, 2, 1
+	for (int i = 25; i >= 8; i--) {
+		binary_result = lookup_ip_binary(i, ip, 0, routes[i].size() - 1);
+
+		prefix = i;
+
+		if (binary_result != -1) {
+			break;
+		}
+	}
 
 	if (binary_result == -1) {
 		return -1;
 	}
 
-	int specific_index = binary_result;
-	// while (is_in_range(specific_index + 1, ip) == IN && (specific_index + 1) < routes.size()) {
-	// 	specific_index++;
-	// }
-
-	unsigned int lower_bound = routes[specific_index].ip &
-			   (0xFFFFFFFF << (32 - routes[specific_index].prefix_length));
-	int distance  = abs(ip - lower_bound);
-	int found_index = binary_result;
-
-	while(true)
-	{
-		specific_index++;
-
-		lower_bound = routes[specific_index].ip &
-				   (0xFFFFFFFF << (32 - routes[specific_index].prefix_length));
-		int next_distance = abs(ip - lower_bound);
-
-		if(next_distance <= distance)
-		{
-			distance = next_distance;
-			if(is_in_range(specific_index, ip) == IN)
-			{
-				found_index = specific_index;
-			}
-		}
-		else
-		{
-			specific_index--;
-			break;
-		}
-	}
-
-	return routes[found_index].port_number;
+	return routes[prefix][binary_result].port_number;
 }
 
 void ip2human(unsigned int ip) {
@@ -176,7 +149,7 @@ void read_routes(void) {
 }
 
 void read_lookup(void) {
-	FILE *f = fopen("lookup.txt", "r");
+	FILE *f = fopen("lookup-long.txt", "r");
 	char s[17];
 
 	while (fgets(s, 17, f)) {
