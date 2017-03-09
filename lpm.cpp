@@ -149,7 +149,7 @@ void read_routes(void) {
 }
 
 void read_lookup(void) {
-	FILE *f = fopen("lookup-long.txt", "r");
+	FILE *f = fopen("lookup.txt", "r");
 	char s[17];
 
 	while (fgets(s, 17, f)) {
