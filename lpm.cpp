@@ -1,3 +1,6 @@
+// Pieter Staal (s1776894)
+// Floris Weers (s1840495)
+
 #include <stdio.h>
 #include <iostream>
 #include <vector>
